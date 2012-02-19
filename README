@@ -1,0 +1,23 @@
+This is JavaScript client library for XMMS2 written using CoffeeScript.
+Must be used via a WebSocket proxy such as websockify for now.
+Compiling to JavaScript requires CoffeeScript to be installed and then running "cake build".
+
+Simple usage (CoffeeScript):
+
+  client = new xmmsclient.Client "myclient"
+
+  client.onconnect = ->
+    alert "Connected!"
+    client.playback.current_id().onvalue = (id) ->
+      client.medialib.get_info(id).onvalue = (propdict) ->
+        metadata = xmmsclient.Propdict.flatten(propdict)
+        alert "Currently playing #{metadata.artist} - #{metadata.title}"
+
+  client.ondisconnect = ->
+    alert "Disconnected"
+
+  client.connect "ws://localhost:9668"
+
+
+websockify: https://github.com/kanaka/websockify
+CoffeeScript: http://coffeescript.org/
