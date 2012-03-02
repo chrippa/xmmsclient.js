@@ -406,7 +406,7 @@ class Bindata
 		str = val[0...val.length-1]
 		return Util.decode_utf8(str)
 
-	read_data: (length = @offset - @data.length) ->
+	read_data: (length = @data.length - @offset) ->
 		data = @data.slice(@offset, @offset + length)
 		@offset += length
 		return data
