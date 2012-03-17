@@ -1,0 +1,37 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+  <title>Jasmine Spec Runner</title>
+
+  <link rel="shortcut icon" type="image/png" href="lib/jasmine/jasmine_favicon.png">
+
+  <link rel="stylesheet" type="text/css" href="lib/jasmine/jasmine.css">
+  <script type="text/javascript" src="lib/jasmine/jasmine.js"></script>
+  <script type="text/javascript" src="lib/jasmine/jasmine-html.js"></script>
+  <script type="text/javascript" src="lib/coffee-script.js"></script>
+
+  <!-- include spec files here... -->
+  <script type="text/coffeescript" src="spec/bindata.coffee"></script>
+  <script type="text/coffeescript" src="spec/client.coffee"></script>
+  <script type="text/coffeescript" src="spec/message.coffee"></script>
+  <script type="text/coffeescript" src="spec/propdict.coffee"></script>
+  <script type="text/coffeescript" src="spec/value.coffee"></script>
+
+  <!-- include source files here... -->
+  <script type="text/javascript" src="../lib/xmmsclient.js"></script>
+  <script type="text/javascript" src="../lib/ipc.js"></script>
+
+  <script type="text/coffeescript">
+    env = jasmine.getEnv()
+    reporter = new jasmine.HtmlReporter()
+    env.addReporter(reporter)
+    env.specFilter = (spec) ->
+      return reporter.specFilter(spec)
+    env.execute()
+  </script>
+</head>
+
+<body>
+</body>
+</html>
