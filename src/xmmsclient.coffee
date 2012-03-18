@@ -1,4 +1,8 @@
-@WebSocket = MozWebSocket? and MozWebSocket or WebSocket? and WebSocket
+if typeof process == "object"
+	net = require "net"
+	url = require "url"
+else
+	@WebSocket = MozWebSocket? and MozWebSocket or WebSocket? and WebSocket
 
 class Util
 	@debug_on = false
@@ -445,7 +449,6 @@ class Bindata
 class Error
 	constructor: (@msg) ->
 
-
 class Client
 	@IPC = {}
 
@@ -464,42 +467,93 @@ class Client
 		@visualization    = new Client.IPC.Visualization @
 		@mediainfo_reader = new Client.IPC.MediainfoReader @
 
-	connect: (@ipcpath, @protocol = "base64") ->
+	connect: (@ipcpath = @default_ipcpath()) ->
 		@cookie = 0
 		@results = []
 		@current_data = null
 		@current_msg = null
 
-		@ws = new WebSocket(@ipcpath, @protocol)
+		parsed = url.parse(@ipcpath)
 
-		@ws.onmessage = (event) =>
-			if @protocol == "binary"
+		if parsed.protocol == "unix:"
+			@socktype = "node"
+			@connect_node(parsed.path)
+		else if parsed.protocol == "tcp:"
+			@socktype = "node"
+			@connect_node(parsed.port, parsed.hostname)
+		else if parsed.protocol == "ws:"
+			@socktype = "websocket"
+			@connect_websocket(@ipcpath)
+		else
+			throw new URIError "Invalid protocol, must be ws, unix or tcp"
+
+
+	default_ipcpath: ->
+		if typeof process == "object"
+			if process.env.XMMS_PATH
+				return process.env.XMMS_PATH
+			else
+				return "unix:///tmp/xmms-ipc-#{process.env.USER}"
+		else
+			return "ws://localhost:9668"
+
+	connect_node: (port, path) ->
+		@sock = new net.Socket()
+
+		@sock.on "connect", =>
+			result = @main.hello(@protocol_version, @clientname)
+			result.onvalue = @onconnect
+
+		@sock.on "data", (data) =>
+			@current_data = new Bindata(data.toString("binary"))
+			@process_data()
+
+		@sock.on "close", (unclean) =>
+			@ondisconnect?(not unclean)
+
+		if port and path
+			@sock.connect(port, path)
+		else
+			@sock.connect(port)
+
+		return @
+
+	connect_websocket: (path, @wsprotocol = "base64") ->
+		@sock = new WebSocket(path, @wsprotocol)
+
+		@sock.onopen = (event) =>
+			result = @main.hello(@protocol_version, @clientname)
+			result.onvalue = @onconnect
+
+		@sock.onmessage = (event) =>
+			if @wsprotocol == "binary"
 				# todo
 			else
 				binary = atob(event.data)
 				@current_data = new Bindata(binary)
 				@process_data()
 
-		@ws.onopen = (event) =>
-			result = @main.hello(@protocol_version, @clientname)
-			result.onvalue = @onconnect
-
-		@ws.onerror = (event) =>
-#			@ondisconnect?()
-
-		@ws.onclose = (event) =>
+		@sock.onclose = (event) =>
 			@ondisconnect?(event.wasClean, event.reason)
 
 		return @
 
 	disconnect: ->
-		@ws.close() if @connected()
+		return if not @connected()
+
+		if @socktype == "websocket"
+			@sock.close()
+		else if @socktype == "node"
+			@sock.end()
 
 	connected: ->
-		if @ws and @ws.readyState == WebSocket.OPEN
-			return true
-		else
-			return false
+		if @socktype == "websocket"
+			if @sock and @sock.readyState == WebSocket.OPEN
+				return true
+			else
+				return false
+		else if @socktype == "node"
+			return @sock.readable
 
 	process_data: ->
 		if @current_msg == null
@@ -563,10 +617,13 @@ class Client
 						break
 
 	send: (data) ->
-		if @client_protocol == "binary"
-			# todo
-		else
-			@ws.send(btoa(data))
+		if @socktype == "websocket"
+			if @wsprotocol == "binary"
+				# todo
+			else
+				@sock.send(btoa(data))
+		else if @socktype == "node"
+			@sock.write(data)
 
 	send_message: (msg) ->
 		cookie = @next_cookie()

@@ -1,6 +1,6 @@
 {
   "name": "xmmsclient",
-  "description": "Client library to interface with XMMS2 daemon over WebSockets.",
+  "description": "Client library to interface with the XMMS2 daemon.",
   "version": "0.8.0devel",
   "author": "Christopher Rosell",
   "main" : "./lib/index.js"
