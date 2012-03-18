@@ -10,7 +10,7 @@ Simple usage (CoffeeScript):
     alert "Connected!"
     client.playback.current_id().onvalue = (id) ->
       client.medialib.get_info(id).onvalue = (propdict) ->
-        metadata = xmmsclient.Propdict.flatten(propdict)
+        metadata = xmmsclient.PropDict.flatten(propdict)
         alert "Currently playing #{metadata.artist} - #{metadata.title}"
 
   client.ondisconnect = ->
