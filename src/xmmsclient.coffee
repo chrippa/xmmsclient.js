@@ -473,20 +473,14 @@ class Client
 		@current_data = null
 		@current_msg = null
 
-		parsed = url.parse(@ipcpath)
-
-		if parsed.protocol == "unix:"
+		if @ipcpath[..3] == "unix" or @ipcpath[..2] == "tcp"
 			@socktype = "node"
-			@connect_node(parsed.path)
-		else if parsed.protocol == "tcp:"
-			@socktype = "node"
-			@connect_node(parsed.port, parsed.hostname)
-		else if parsed.protocol == "ws:"
+			@connect_node(@ipcpath)
+		else if @ipcpath[..2] == "ws"
 			@socktype = "websocket"
 			@connect_websocket(@ipcpath)
 		else
 			throw new URIError "Invalid protocol, must be ws, unix or tcp"
-
 
 	default_ipcpath: ->
 		if typeof process == "object"
@@ -497,7 +491,7 @@ class Client
 		else
 			return "ws://localhost:9668"
 
-	connect_node: (port, path) ->
+	connect_node: (path) ->
 		@sock = new net.Socket()
 
 		@sock.on "connect", =>
@@ -511,10 +505,12 @@ class Client
 		@sock.on "close", (unclean) =>
 			@ondisconnect?(not unclean)
 
-		if port and path
-			@sock.connect(port, path)
+		parsed = url.parse(path)
+
+		if parsed.protocol == "unix:"
+			@sock.connect(parsed.path)
 		else
-			@sock.connect(port)
+			@sock.connect(parsed.port, parsed.hostname)
 
 		return @
 
