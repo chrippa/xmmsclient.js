@@ -216,6 +216,7 @@ class Result
 		@onvalue = null
 		@value = null
 
+CollParser = require "./collparser"
 
 class Collection
 	Type:
@@ -708,6 +709,7 @@ xmmsclient = @xmmsclient = {}
 xmmsclient.ActivePlaylist = ActivePlaylist
 xmmsclient.Bindata = Bindata
 xmmsclient.Client = Client
+xmmsclient.CollParser = CollParser
 xmmsclient.Collection = Collection
 xmmsclient.CollectionChanged = CollectionChanged
 xmmsclient.CollectionNamespace = CollectionNamespace
