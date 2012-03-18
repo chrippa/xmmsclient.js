@@ -476,7 +476,7 @@ class Client
 		if @ipcpath[..3] == "unix" or @ipcpath[..2] == "tcp"
 			@socktype = "node"
 			@connect_node(@ipcpath)
-		else if @ipcpath[..2] == "ws"
+		else if @ipcpath[..1] == "ws"
 			@socktype = "websocket"
 			@connect_websocket(@ipcpath)
 		else
