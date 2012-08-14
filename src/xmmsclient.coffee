@@ -216,8 +216,6 @@ class Result
 		@onvalue = null
 		@value = null
 
-CollParser = require "./collparser"
-
 class Collection
 	Type:
 		Reference:    0
@@ -705,11 +703,10 @@ PluginType =
 	OUTPUT: 1
 	XFORM:  2
 
-xmmsclient = @xmmsclient = {}
+xmmsclient = {}
 xmmsclient.ActivePlaylist = ActivePlaylist
 xmmsclient.Bindata = Bindata
 xmmsclient.Client = Client
-xmmsclient.CollParser = CollParser
 xmmsclient.Collection = Collection
 xmmsclient.CollectionChanged = CollectionChanged
 xmmsclient.CollectionNamespace = CollectionNamespace
@@ -725,4 +722,7 @@ xmmsclient.Result = Result
 xmmsclient.Seek = Seek
 xmmsclient.Value = Value
 
-module?.exports = xmmsclient
+if module?.exports?
+	module.exports = xmmsclient
+else
+	window.xmmsclient = xmmsclient
