@@ -1114,4 +1114,3 @@ class Bindata
 
 xmmsclient.Client.IPC.Bindata = Bindata
 
-module.exports = xmmsclient

@@ -53,8 +53,6 @@ def build(ipc):
         Indenter.printline("xmmsclient.Client.IPC.%s = %s" % (camel_name, camel_name))
         Indenter.printline()
 
-    Indenter.printline("module.exports = xmmsclient")
-
 
 def emit_method_code(object, method, name_prefix):
     method_name = name_prefix + method.name
