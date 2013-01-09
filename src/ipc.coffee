@@ -73,14 +73,16 @@ class Playlist
 	object_id: 2
 	constructor: (@client) ->
 
-	shuffle: (playlist) ->
-		### Shuffles the current playlist. ###
+	replace: (playlist, replacement, action) ->
+		### Queries a collection and replaces the playlist with the result. ###
 		playlist = xmmsclient.Message.check_string playlist
+		replacement = xmmsclient.Message.check_collection replacement
+		action = xmmsclient.Message.check_int action
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
 		message.command_id = 32
-		message.args = [playlist]
+		message.args = [playlist, replacement, action]
 
 		return @client.send_message message
 
@@ -122,42 +124,15 @@ class Playlist
 		return @client.send_message message
 
 
-	add_id: (playlist, id) ->
-		### Adds a song to the given playlist. ###
-		playlist = xmmsclient.Message.check_string playlist
-		id = xmmsclient.Message.check_int id
+	add_collection: (name, collection) ->
+		### Adds the contents of a collection to the given playlist. ###
+		name = xmmsclient.Message.check_string name
+		collection = xmmsclient.Message.check_collection collection
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
 		message.command_id = 36
-		message.args = [playlist, id]
-
-		return @client.send_message message
-
-
-	add_idlist: (name, collection) ->
-		### Adds songs to the given playlist. ###
-		name = xmmsclient.Message.check_string name
-		collection = xmmsclient.Message.check_collection collection
-
-		message = new xmmsclient.Message()
-		message.object_id = @object_id
-		message.command_id = 37
 		message.args = [name, collection]
-
-		return @client.send_message message
-
-
-	add_collection: (name, collection, order) ->
-		### Adds the contents of a collection to the given playlist. ###
-		name = xmmsclient.Message.check_string name
-		collection = xmmsclient.Message.check_collection collection
-		order = xmmsclient.Message.check_list order, "string"
-
-		message = new xmmsclient.Message()
-		message.object_id = @object_id
-		message.command_id = 38
-		message.args = [name, collection, order]
 
 		return @client.send_message message
 
@@ -169,7 +144,7 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 39
+		message.command_id = 37
 		message.args = [playlist, position]
 
 		return @client.send_message message
@@ -183,33 +158,8 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 40
+		message.command_id = 38
 		message.args = [playlist, current_position, new_position]
-
-		return @client.send_message message
-
-
-	clear: (playlist) ->
-		### Removes all songs from the given playlist. ###
-		playlist = xmmsclient.Message.check_string playlist
-
-		message = new xmmsclient.Message()
-		message.object_id = @object_id
-		message.command_id = 41
-		message.args = [playlist]
-
-		return @client.send_message message
-
-
-	sort: (playlist, properties) ->
-		### Sorts the given playlist by the given properties. ###
-		playlist = xmmsclient.Message.check_string playlist
-		properties = xmmsclient.Message.check_list properties, "string"
-
-		message = new xmmsclient.Message()
-		message.object_id = @object_id
-		message.command_id = 42
-		message.args = [playlist, properties]
 
 		return @client.send_message message
 
@@ -220,7 +170,7 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 43
+		message.command_id = 39
 		message.args = [name]
 
 		return @client.send_message message
@@ -232,7 +182,7 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 44
+		message.command_id = 40
 		message.args = [name]
 
 		return @client.send_message message
@@ -242,7 +192,7 @@ class Playlist
 		### Retrieves the name of the currently active playlist. ###
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 45
+		message.command_id = 41
 		message.args = []
 
 		return @client.send_message message
@@ -256,37 +206,22 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 46
+		message.command_id = 42
 		message.args = [name, position, url]
 
 		return @client.send_message message
 
 
-	insert_id: (name, position, entry) ->
-		### Inserts a song into the given playlist. ###
-		name = xmmsclient.Message.check_string name
-		position = xmmsclient.Message.check_int position
-		entry = xmmsclient.Message.check_int entry
-
-		message = new xmmsclient.Message()
-		message.object_id = @object_id
-		message.command_id = 47
-		message.args = [name, position, entry]
-
-		return @client.send_message message
-
-
-	insert_collection: (name, position, collection, order) ->
+	insert_collection: (name, position, collection) ->
 		### Inserts the contents of a collection into the given playlist. ###
 		name = xmmsclient.Message.check_string name
 		position = xmmsclient.Message.check_int position
 		collection = xmmsclient.Message.check_collection collection
-		order = xmmsclient.Message.check_list order, "string"
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 48
-		message.args = [name, position, collection, order]
+		message.command_id = 43
+		message.args = [name, position, collection]
 
 		return @client.send_message message
 
@@ -297,7 +232,7 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 49
+		message.command_id = 44
 		message.args = [name]
 
 		return @client.send_message message
@@ -310,7 +245,7 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 50
+		message.command_id = 45
 		message.args = [name, url]
 
 		return @client.send_message message
@@ -324,7 +259,7 @@ class Playlist
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
-		message.command_id = 51
+		message.command_id = 46
 		message.args = [name, position, url]
 
 		return @client.send_message message
@@ -864,19 +799,18 @@ class Collection
 		return @client.send_message message
 
 
-	query_infos: (collection, lim_start, lim_len, order, fetch, group) ->
+	query_infos: (collection, lim_start, lim_len, fetch, group) ->
 		### FIXME. ###
 		collection = xmmsclient.Message.check_collection collection
 		lim_start = xmmsclient.Message.check_int lim_start
 		lim_len = xmmsclient.Message.check_int lim_len
-		order = xmmsclient.Message.check_list order, "string"
 		fetch = xmmsclient.Message.check_list fetch, "string"
 		group = xmmsclient.Message.check_list group, "string"
 
 		message = new xmmsclient.Message()
 		message.object_id = @object_id
 		message.command_id = 39
-		message.args = [collection, lim_start, lim_len, order, fetch, group]
+		message.args = [collection, lim_start, lim_len, fetch, group]
 
 		return @client.send_message message
 

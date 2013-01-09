@@ -85,6 +85,49 @@ class Value
 		List:       0x06
 		Dictionary: 0x07
 
+	@serialize_bin: (bindata, val) ->
+		bindata.write_int val.data.length
+		bindata.write_data val.data
+
+
+	@serialize_coll: (bindata, val) ->
+		bindata.write_int val.type
+
+		Value.serialize_dict(bindata, val.attributes)
+
+		bindata.write_int val.idlist.length
+
+		for value in val.idlist
+			bindata.write_int value
+
+		n = if val.type != val.Type.Reference then val.operands.length else 0
+		bindata.write_int n
+
+		if n > 0
+			for coll in val.operands
+				if coll instanceof Collection
+					Value.serialize(bindata, coll)
+				else
+					throw new ValueError("Invalid value in coll operands")
+
+	@serialize_list: (bindata, val) ->
+		bindata.write_int val.length
+
+		for value, i in val
+			Value.serialize(bindata, value)
+
+
+	@serialize_dict: (bindata, val) ->
+		length = 0
+		for key of val
+			length += 1
+
+		bindata.write_int length
+
+		for key, value of val
+			bindata.write_string key
+			Value.serialize(bindata, value)
+
 	@serialize: (bindata, val) ->
 		switch typeof(val)
 			when "string"
@@ -98,53 +141,66 @@ class Value
 			when "object"
 				if Array.isArray(val)
 					bindata.write_int @Type.List
-					bindata.write_int val.length
-
-					for value, i in val
-						Value.serialize(bindata, value)
+					Value.serialize_list(bindata, val)
 
 				else if val instanceof Bindata
 					bindata.write_int @Type.Binary
-					bindata.write_int val.data.length
-					bindata.write_data val.data
+					Value.serialize_bin(bindata, val)
 
 				else if val instanceof Collection
 					bindata.write_int @Type.Collection
-					bindata.write_int val.type
-
-					length = 0
-					for key of val.attributes
-						length += 1
-
-					bindata.write_int length
-					for key, value of val.attributes
-						bindata.write_string key
-						bindata.write_string value
-
-					bindata.write_int val.idlist.length
-					for value in val.idlist
-						bindata.write_int value
-
-					n = if val.type != val.Type.Reference then val.operands.length else 0
-					bindata.write_int n
-
-					if n > 0
-						for coll in val.operands
-							Value.serialize(bindata, coll)
+					Value.serialize_coll(bindata, val)
 
 				else
 					bindata.write_int @Type.Dictionary
+					Value.serialize_dict(bindata, val)
 
-					length = 0
-					for key of val
-						length += 1
 
-					bindata.write_int length
+	@deserialize_bin: (bindata) ->
+		length = bindata.read_int()
 
-					for key, value of val
-						bindata.write_string key
-						Value.serialize(bindata, value)
+		return new Bindata(bindata.read_data(length))
 
+	@deserialize_coll: (bindata) ->
+		type = bindata.read_int()
+		coll = new Collection(type)
+
+		coll.attributes = Value.deserialize_dict(bindata)
+
+		length = bindata.read_int()
+		for i in [0...length]
+			value = bindata.read_int()
+			coll.idlist[i] = value
+
+		length = bindata.read_int()
+		for i in [0...length]
+			type = bindata.read_int()
+			if type != Value.Type.Collection
+				throw new ValueError("Invalid value in collection operands")
+
+			value = Value.deserialize_coll(bindata)
+			coll.operands.push(value)
+
+		return coll
+
+	@deserialize_list: (bindata) ->
+		length = bindata.read_int()
+		list = []
+		for i in [0...length]
+			list[i] = Value.deserialize(bindata)
+
+		return list
+
+	@deserialize_dict: (bindata) ->
+		dict = {}
+		length = bindata.read_int()
+
+		for i in [0...length]
+			key = bindata.read_string()
+			value = Value.deserialize(bindata)
+			dict[key] = value
+
+		return dict
 
 
 	@deserialize: (bindata) ->
@@ -158,55 +214,22 @@ class Value
 				return new Error(bindata.read_string())
 
 			when Value.Type.Integer
-				val = bindata.read_int()
-				return val
+				return bindata.read_int()
 
 			when Value.Type.String
 				return bindata.read_string()
 
 			when Value.Type.Binary
-				length = bindata.read_int()
-				return new Bindata(bindata.read_data(length))
+				return Value.deserialize_bin(bindata)
 
 			when Value.Type.Collection
-				type = bindata.read_int()
-				coll = new Collection(type)
-
-				length = bindata.read_int()
-				for i in [0...length]
-					key = bindata.read_string()
-					value = bindata.read_string()
-					coll.attributes[key] = value
-
-				length = bindata.read_int()
-				for i in [0...length]
-					value = bindata.read_int()
-					coll.idlist.push(value)
-
-				length = bindata.read_int()
-				for i in [0...length]
-					value = Value.deserialize(bindata)
-					coll.operands.push(value)
-
-				return coll
+				return Value.deserialize_coll(bindata)
 
 			when Value.Type.List
-				length = bindata.read_int()
-				list = []
-				for i in [0...length]
-					list[i] = Value.deserialize(bindata)
-
-				return list
+				return Value.deserialize_list(bindata)
 
 			when Value.Type.Dictionary
-				length = bindata.read_int()
-				dict = {}
-				for i in [0...length]
-					key = bindata.read_string()
-					value = Value.deserialize(bindata)
-					dict[key] = value
-
-				return dict
+				return Value.deserialize_dict(bindata)
 
 
 class Result
@@ -451,7 +474,7 @@ class Error
 class Client
 	@IPC = {}
 
-	protocol_version: 19
+	protocol_version: 20
 	max_cookie: 524288
 
 	constructor: (@clientname) ->
@@ -618,7 +641,7 @@ class Client
 			else
 				@sock.send(btoa(data))
 		else if @socktype == "node"
-			@sock.write(data)
+			@sock.write(data, "binary")
 
 	send_message: (msg) ->
 		cookie = @next_cookie()
