@@ -1,7 +1,7 @@
 {
   "name": "xmmsclient",
   "description": "Client library to interface with the XMMS2 daemon.",
-  "version": "0.8.0-devel-1",
+  "version": "0.8.0-git-d066d677-1",
   "author": "Christopher Rosell",
   "main" : "./lib/index.js"
 }
