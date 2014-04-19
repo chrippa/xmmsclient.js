@@ -66,10 +66,10 @@ class Message
 		Value.serialize(payload, @args)
 
 		header = new Bindata()
-		header.write_int(@object_id)
-		header.write_int(@command_id)
-		header.write_int(cookie)
-		header.write_int(payload.data.length)
+		header.write_int32(@object_id)
+		header.write_int32(@command_id)
+		header.write_int32(cookie)
+		header.write_int32(payload.data.length)
 
 		return header.data + payload.data
 
@@ -86,126 +86,125 @@ class Value
 		Dictionary: 0x07
 
 	@serialize_bin: (bindata, val) ->
-		bindata.write_int val.data.length
+		bindata.write_int32 val.data.length
 		bindata.write_data val.data
 
-
 	@serialize_coll: (bindata, val) ->
-		bindata.write_int val.type
+		bindata.write_int32 val.type
 
-		Value.serialize_dict(bindata, val.attributes)
+		@serialize_dict(bindata, val.attributes)
+		@serialize_list(bindata, val.idlist, @Type.Integer)
 
-		bindata.write_int val.idlist.length
+		if val.type == val.Type.Reference
+			@serialize_list(bindata, [], @Type.Collection)
+		else
+			@serialize_list(bindata, val.operands, @Type.Collection)
 
-		for value in val.idlist
-			bindata.write_int value
-
-		n = if val.type != val.Type.Reference then val.operands.length else 0
-		bindata.write_int n
-
-		if n > 0
-			for coll in val.operands
-				if coll instanceof Collection
-					Value.serialize(bindata, coll)
-				else
-					throw new ValueError("Invalid value in coll operands")
-
-	@serialize_list: (bindata, val) ->
-		bindata.write_int val.length
+	@serialize_list: (bindata, val, type) ->
+		type ?= @Type.None
+		bindata.write_int32 type
+		bindata.write_int32 val.length
 
 		for value, i in val
-			Value.serialize(bindata, value)
-
+			if type == @Type.None
+				@serialize(bindata, value)
+			else
+				@serialize_value(bindata, value)
 
 	@serialize_dict: (bindata, val) ->
 		length = 0
 		for key of val
 			length += 1
 
-		bindata.write_int length
-
+		bindata.write_int32 length
 		for key, value of val
 			bindata.write_string key
-			Value.serialize(bindata, value)
+			@serialize(bindata, value)
 
 	@serialize: (bindata, val) ->
+		@serialize_type(bindata, val)
+		@serialize_value(bindata, val)
+
+	@serialize_type: (bindata, val) ->
 		switch typeof(val)
 			when "string"
-				bindata.write_int @Type.String
-				bindata.write_string val
+				bindata.write_int32 @Type.String
 
 			when "number"
-				bindata.write_int @Type.Integer
-				bindata.write_int val
+				bindata.write_int32 @Type.Integer
 
 			when "object"
 				if Array.isArray(val)
-					bindata.write_int @Type.List
-					Value.serialize_list(bindata, val)
+					bindata.write_int32 @Type.List
 
 				else if val instanceof Bindata
-					bindata.write_int @Type.Binary
-					Value.serialize_bin(bindata, val)
+					bindata.write_int32 @Type.Binary
 
 				else if val instanceof Collection
-					bindata.write_int @Type.Collection
-					Value.serialize_coll(bindata, val)
+					bindata.write_int32 @Type.Collection
 
 				else
-					bindata.write_int @Type.Dictionary
-					Value.serialize_dict(bindata, val)
+					bindata.write_int32 @Type.Dictionary
 
+	@serialize_value: (bindata, val) ->
+		switch typeof(val)
+			when "string"
+				bindata.write_string val
+
+			when "number"
+				bindata.write_int64 val
+
+			when "object"
+				if Array.isArray(val)
+					@serialize_list(bindata, val)
+
+				else if val instanceof Bindata
+					@serialize_bin(bindata, val)
+
+				else if val instanceof Collection
+					@serialize_coll(bindata, val)
+
+				else
+					@serialize_dict(bindata, val)
 
 	@deserialize_bin: (bindata) ->
-		length = bindata.read_int()
-
+		length = bindata.read_int32()
 		return new Bindata(bindata.read_data(length))
 
 	@deserialize_coll: (bindata) ->
-		type = bindata.read_int()
+		type = bindata.read_int32()
 		coll = new Collection(type)
 
-		coll.attributes = Value.deserialize_dict(bindata)
-
-		length = bindata.read_int()
-		for i in [0...length]
-			value = bindata.read_int()
-			coll.idlist[i] = value
-
-		length = bindata.read_int()
-		for i in [0...length]
-			type = bindata.read_int()
-			if type != Value.Type.Collection
-				throw new ValueError("Invalid value in collection operands")
-
-			value = Value.deserialize_coll(bindata)
-			coll.operands.push(value)
+		coll.attributes = @deserialize_dict(bindata)
+		coll.idlist = @deserialize_list(bindata)
+		coll.operands = @deserialize_list(bindata)
 
 		return coll
 
 	@deserialize_list: (bindata) ->
-		length = bindata.read_int()
+		type = bindata.read_int32()
+		length = bindata.read_int32()
 		list = []
 		for i in [0...length]
-			list[i] = Value.deserialize(bindata)
+			if type == @Type.None
+				list[i] = @deserialize(bindata)
+			else
+				list[i] = @deserialize(bindata, type)
 
 		return list
 
 	@deserialize_dict: (bindata) ->
 		dict = {}
-		length = bindata.read_int()
+		length = bindata.read_int32()
 
 		for i in [0...length]
 			key = bindata.read_string()
-			value = Value.deserialize(bindata)
+			value = @deserialize(bindata)
 			dict[key] = value
 
 		return dict
 
-
-	@deserialize: (bindata) ->
-		type = bindata.read_int()
-
+	@deserialize_value: (bindata, type) ->
 		switch type
 			when Value.Type.None
 				return null
@@ -214,22 +213,26 @@ class Value
 				return new Error(bindata.read_string())
 
 			when Value.Type.Integer
-				return bindata.read_int()
+				return bindata.read_int64()
 
 			when Value.Type.String
 				return bindata.read_string()
 
 			when Value.Type.Binary
-				return Value.deserialize_bin(bindata)
+				return @deserialize_bin(bindata)
 
 			when Value.Type.Collection
-				return Value.deserialize_coll(bindata)
+				return @deserialize_coll(bindata)
 
 			when Value.Type.List
-				return Value.deserialize_list(bindata)
+				return @deserialize_list(bindata)
 
 			when Value.Type.Dictionary
-				return Value.deserialize_dict(bindata)
+				return @deserialize_dict(bindata)
+
+	@deserialize: (bindata) ->
+		type = bindata.read_int32()
+		return @deserialize_value(bindata, type)
 
 
 class Result
@@ -422,12 +425,16 @@ class Bindata
 	tell: ->
 		return @offset
 
-	read_int: ->
+	read_int32: ->
 		data = @read_data(4)
-		return @unpack_int(data)
+		return @unpack_int32(data)
+
+	read_int64: ->
+		data = @read_data(8)
+		return @unpack_int64(data)
 
 	read_string: ->
-		length = @read_int()
+		length = @read_int32()
 		val = @read_data(length)
 		str = val[0...val.length-1]
 		return Util.decode_utf8(str)
@@ -437,7 +444,7 @@ class Bindata
 		@offset += length
 		return data
 
-	unpack_int: (data) ->
+	unpack_int32: (data) ->
 		num = 0
 		num += (data.charCodeAt(0) & 0xFF) << 24
 		num += (data.charCodeAt(1) & 0xFF) << 16
@@ -445,13 +452,28 @@ class Bindata
 		num += (data.charCodeAt(3) & 0xFF)
 		return num
 
-	write_int: (num) ->
-		@write_data(@pack_int(num))
+	unpack_int64: (data) ->
+		num = 0
+		num += (data.charCodeAt(0) & 0xFF) << 56
+		num += (data.charCodeAt(1) & 0xFF) << 48
+		num += (data.charCodeAt(2) & 0xFF) << 40
+		num += (data.charCodeAt(3) & 0xFF) << 32
+		num += (data.charCodeAt(4) & 0xFF) << 24
+		num += (data.charCodeAt(5) & 0xFF) << 16
+		num += (data.charCodeAt(6) & 0xFF) << 8
+		num += (data.charCodeAt(7) & 0xFF)
+		return num
+
+	write_int32: (num) ->
+		@write_data(@pack_int32(num))
+
+	write_int64: (num) ->
+		@write_data(@pack_int64(num))
 
 	write_string: (val) ->
 		str = Util.encode_utf8(val)
 
-		@write_int str.length + 1
+		@write_int32 str.length + 1
 		@write_data str
 		@write_data "\x00"
 
@@ -459,8 +481,20 @@ class Bindata
 		@data = @data.slice(0, @offset) + data + @data.slice(@offset, @data.length)
 		@offset += data.length
 
-	pack_int: (num) ->
+	pack_int32: (num) ->
 		data = ""
+		data += String.fromCharCode(num >> 24 & 0xFF)
+		data += String.fromCharCode(num >> 16 & 0xFF)
+		data += String.fromCharCode(num >> 8 & 0xFF)
+		data += String.fromCharCode(num & 0xFF)
+		return data
+
+	pack_int64: (num) ->
+		data = ""
+		data += String.fromCharCode(0)
+		data += String.fromCharCode(0)
+		data += String.fromCharCode(0)
+		data += String.fromCharCode(0)
 		data += String.fromCharCode(num >> 24 & 0xFF)
 		data += String.fromCharCode(num >> 16 & 0xFF)
 		data += String.fromCharCode(num >> 8 & 0xFF)
@@ -474,7 +508,7 @@ class Error
 class Client
 	@IPC = {}
 
-	protocol_version: 20
+	protocol_version: 23
 	max_cookie: 524288
 
 	constructor: (@clientname) ->
@@ -490,7 +524,7 @@ class Client
 		@mediainfo_reader = new Client.IPC.MediainfoReader @
 
 	connect: (@ipcpath = @default_ipcpath()) ->
-		@cookie = 0
+		@cookie = -1
 		@results = []
 		@current_data = null
 		@current_msg = null
@@ -576,10 +610,10 @@ class Client
 	process_data: ->
 		if @current_msg == null
 			msg = new Message()
-			msg.object_id = @current_data.read_int()
-			msg.command_id = @current_data.read_int()
-			msg.cookie = @current_data.read_int()
-			msg.payload_length = @current_data.read_int()
+			msg.object_id = @current_data.read_int32()
+			msg.command_id = @current_data.read_int32()
+			msg.cookie = @current_data.read_int32()
+			msg.payload_length = @current_data.read_int32()
 
 			data_left = @current_data.data.length - @current_data.tell()
 			if msg.payload_length > data_left

@@ -827,16 +827,6 @@ class Collection
 		return @client.send_message message
 
 
-	sync: ->
-		### FIXME. ###
-		message = new xmmsclient.Message()
-		message.object_id = @object_id
-		message.command_id = 41
-		message.args = []
-
-		return @client.send_message message
-
-
 	broadcast_changed: ->
 		### This broadcast is triggered when a collection is changed. ###
 		message = new xmmsclient.Message()
@@ -1047,4 +1037,109 @@ class Bindata
 
 
 xmmsclient.Client.IPC.Bindata = Bindata
+
+# CollSync
+class CollSync
+
+	object_id: 11
+	constructor: (@client) ->
+
+	sync: ->
+		### Save collections to disk. ###
+		message = new xmmsclient.Message()
+		message.object_id = @object_id
+		message.command_id = 32
+		message.args = []
+
+		return @client.send_message message
+
+
+
+xmmsclient.Client.IPC.CollSync = CollSync
+
+# Courier
+class Courier
+
+	object_id: 12
+	constructor: (@client) ->
+
+	send_message: (dest, reply_policy, payload) ->
+		### Assemble and send a client-to-client message. ###
+		dest = xmmsclient.Message.check_int dest
+		reply_policy = xmmsclient.Message.check_int reply_policy
+		payload = xmmsclient.Message.check_dictionary payload
+
+		message = new xmmsclient.Message()
+		message.object_id = @object_id
+		message.command_id = 32
+		message.args = [dest, reply_policy, payload]
+
+		return @client.send_message message
+
+
+	reply: (msgid, reply_policy, payload) ->
+		### Assemble and send a reply to a client-to-client message ###
+		msgid = xmmsclient.Message.check_int msgid
+		reply_policy = xmmsclient.Message.check_int reply_policy
+		payload = xmmsclient.Message.check_dictionary payload
+
+		message = new xmmsclient.Message()
+		message.object_id = @object_id
+		message.command_id = 33
+		message.args = [msgid, reply_policy, payload]
+
+		return @client.send_message message
+
+
+	get_connected_clients: ->
+		### Return a list of connected clients. ###
+		message = new xmmsclient.Message()
+		message.object_id = @object_id
+		message.command_id = 34
+		message.args = []
+
+		return @client.send_message message
+
+
+	broadcast_message: ->
+		### This broadcast carries client-to-client messages. ###
+		message = new xmmsclient.Message()
+		message.object_id = 0
+		message.command_id = 33
+		message.args = [15]
+
+		return @client.send_message message
+
+
+
+xmmsclient.Client.IPC.Courier = Courier
+
+# IpcManager
+class IpcManager
+
+	object_id: 13
+	constructor: (@client) ->
+
+	broadcast_client_connected: ->
+		### This broadcast is emitted when a new client connects. ###
+		message = new xmmsclient.Message()
+		message.object_id = 0
+		message.command_id = 33
+		message.args = [16]
+
+		return @client.send_message message
+
+
+	broadcast_client_disconnected: ->
+		### This broadcast is emitted when a client disconnects. ###
+		message = new xmmsclient.Message()
+		message.object_id = 0
+		message.command_id = 33
+		message.args = [17]
+
+		return @client.send_message message
+
+
+
+xmmsclient.Client.IPC.IpcManager = IpcManager
 

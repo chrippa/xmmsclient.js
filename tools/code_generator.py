@@ -58,7 +58,6 @@ def emit_method_code(object, method, name_prefix):
     method_name = name_prefix + method.name
     arguments = getattr(method, "arguments", [])
 
-
     s = ", ".join(a.name for a in arguments)
     if len(arguments) > 0:
         Indenter.enter("%s: (%s) ->" % (method_name, s))
@@ -68,7 +67,7 @@ def emit_method_code(object, method, name_prefix):
     Indenter.printline("### %s ###" % method.documentation)
 
     for a in arguments:
-        if len(a.type) > 1:
+        if len(a.type) > 1 and a.type[1] != "unknown":
             subtype = jstype(a.type[1])
             s = "%s = xmmsclient.Message.check_%s %s, \"%s\""
             Indenter.printline(s % (a.name, a.type[0], a.name, subtype))
