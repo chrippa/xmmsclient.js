@@ -561,6 +561,9 @@ class Client
 		@sock.on "close", (unclean) =>
 			@ondisconnect?(not unclean)
 
+		@sock.on "error", (error) =>
+			@onerror(error)
+
 		parsed = url.parse(path)
 
 		if parsed.protocol == "unix:"
